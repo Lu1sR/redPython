@@ -1,0 +1,103 @@
+service: redPython
+app: lambda-telegram-bot
+org: lrodriguez
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: python3.8
+  region: us-east-1
+  timeout: 15
+  iam:
+    role:
+      statements:
+        - Effect: 'Allow'
+          Resource: '*'
+          Action: 's3:*'
+        - Effect: 'Allow'
+          Resource: '*'
+          Action: 'sqs:*'
+        - Effect: Allow
+          Action:
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+          Resource: arn:aws:dynamodb:us-east-1:934396891861:table/tickets
+constructs:
+  generate-qr-queue:
+    type: queue
+    worker:
+      handler: handler.generateQr
+      environment:
+        QUEUE_EMAIL_ARN: ${construct:email-queue.queueArn}
+        QUEUE_EMAIL_URL: ${construct:email-queue.queueUrl}
+      layers: 
+        - arn:aws:lambda:us-east-1:770693421928:layer:Klayers-p38-Pillow:4
+      
+  email-queue:
+    type: queue
+    worker:
+      handler: handler.sendEmail
+      timeout: 15
+      layers: 
+        - arn:aws:lambda:us-east-1:770693421928:layer:Klayers-p38-Pillow:4
+      
+functions:
+  # send-email:
+  #   handler: handler.sendEmail
+  #   timeout: 15
+  #   layers: 
+  #     - arn:aws:lambda:us-east-1:770693421928:layer:Klayers-p38-Pillow:4
+  #   events:
+  #     - sqs: arn:aws:sqs:us-east-1:934396891861:ticket-queue
+
+  # generate-qr:
+  #   handler: handler.generateQr
+  #   layers: 
+  #     - arn:aws:lambda:us-east-1:770693421928:layer:Klayers-p38-Pillow:4
+  #   events:
+  #     - httpApi:
+  #         path: /generate-ticket
+  #         method: post
+  
+  validate-qr:
+    handler: handler.redirection
+    layers: 
+      - arn:aws:lambda:us-east-1:770693421928:layer:Klayers-p38-Pillow:4
+    events:
+      - httpApi:
+          path: /validate-ticket
+          method: get
+  set-authorized-user:
+    handler: handler.setAuthorizedUser
+    layers: 
+      - arn:aws:lambda:us-east-1:770693421928:layer:Klayers-p38-Pillow:4
+    events:
+      - httpApi:
+          path: /set-authorized-user
+          method: get
+
+resources:
+ Resources:
+   ImagesDynamoDbTable:
+     Type: AWS::DynamoDB::Table
+     Properties:
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 2
+          WriteCapacityUnits: 2
+        TableName: tickets
+
+plugins:
+  - serverless-offline
+  - serverless-lift
+  - serverless-python-requirements
+  

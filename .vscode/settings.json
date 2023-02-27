@@ -1,0 +1,17 @@
+{
+    "serverlessConsole.services": [
+        {
+            "type": "cloudformation",
+            "title": "tickets",
+            "timeOffsetInMs": 0,
+            "awsProfile": "tickets",
+            "stacks": [
+                {
+                    "region": "us-east-1",
+                    "stackName": "redPython-dev",
+                    "stage": "dev"
+                }
+            ]
+        }
+    ]
+}
